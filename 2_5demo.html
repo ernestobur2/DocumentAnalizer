@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Multimodal - Gemini 2.5 Flash</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chatbot-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4285f4, #34a853, #fbbc05, #ea4335);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .api-config {
+            background: #f8f9fa;
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .api-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .api-input:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 80%;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #4285f4;
+        }
+
+        .message.bot .message-avatar {
+            background: #34a853;
+        }
+
+        .message-content {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: #4285f4;
+            color: white;
+        }
+
+        .media-preview {
+            margin-top: 10px;
+            border-radius: 8px;
+            overflow: hidden;
+            max-width: 300px;
+        }
+
+        .media-preview img,
+        .media-preview video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .media-preview audio {
+            width: 100%;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .text-input {
+            flex: 1;
+            min-height: 40px;
+            max-height: 120px;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+
+        .media-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .media-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: #4285f4;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-size: 16px;
+        }
+
+        .media-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
+        }
+
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: #34a853;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-size: 16px;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3);
+        }
+
+        .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4285f4;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 4px solid #c33;
+        }
+
+        .file-info {
+            background: #f0f8ff;
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #0066cc;
+            border: 1px solid #cce7ff;
+        }
+
+        @media (max-width: 768px) {
+            .chatbot-container {
+                height: 90vh;
+                margin: 10px;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chatbot-container">
+        <div class="header">
+            <h1>🤖 Gemini 2.5 Flash Multimodal</h1>
+            <p>Chatbot con soporte para texto, imágenes, audio y video</p>
+        </div>
+
+        <div class="api-config">
+            <input type="password" id="apiKey" class="api-input" placeholder="Ingresa tu API Key de Google AI Studio">
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-avatar">G</div>
+                <div class="message-content">
+                    ¡Hola! Soy Gemini 2.5 Flash. Puedo procesar texto, imágenes, audio y video. Para comenzar, ingresa tu API Key arriba y luego envíame cualquier tipo de contenido. 🚀
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-container">
+                <textarea id="textInput" class="text-input" placeholder="Escribe tu mensaje aquí..." rows="1"></textarea>
+                
+                <div class="media-buttons">
+                    <button class="media-btn" onclick="selectFile('image')" title="Subir imagen">
+                        📷
+                    </button>
+                    <button class="media-btn" onclick="selectFile('audio')" title="Subir audio">
+                        🎵
+                    </button>
+                    <button class="media-btn" onclick="selectFile('video')" title="Subir video">
+                        🎬
+                    </button>
+                </div>
+                
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                    ➤
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File inputs hidden -->
+    <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+    <input type="file" id="audioInput" accept="audio/*" class="hidden" onchange="handleFileSelect(event)">
+    <input type="file" id="videoInput" accept="video/*" class="hidden" onchange="handleFileSelect(event)">
+
+    <script>
+        class GeminiChatbot {
+            constructor() {
+                this.apiKey = '';
+                this.chatHistory = [];
+                this.currentFile = null;
+                this.initializeElements();
+                this.setupEventListeners();
+            }
+
+            initializeElements() {
+                this.apiKeyInput = document.getElementById('apiKey');
+                this.chatMessages = document.getElementById('chatMessages');
+                this.textInput = document.getElementById('textInput');
+                this.sendBtn = document.getElementById('sendBtn');
+            }
+
+            setupEventListeners() {
+                this.apiKeyInput.addEventListener('input', (e) => {
+                    this.apiKey = e.target.value.trim();
+                });
+
+                this.textInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                this.textInput.addEventListener('input', this.autoResize);
+            }
+
+            autoResize(e) {
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+            }
+
+            async fileToBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const base64 = reader.result.split(',')[1];
+                        resolve(base64);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            getMimeType(file) {
+                return file.type;
+            }
+
+            addMessage(content, isUser = false, file = null) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = isUser ? 'U' : 'G';
+
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                messageContent.textContent = content;
+
+                if (file) {
+                    const mediaPreview = document.createElement('div');
+                    mediaPreview.className = 'media-preview';
+
+                    if (file.type.startsWith('image/')) {
+                        const img = document.createElement('img');
+                        img.src = URL.createObjectURL(file);
+                        mediaPreview.appendChild(img);
+                    } else if (file.type.startsWith('video/')) {
+                        const video = document.createElement('video');
+                        video.src = URL.createObjectURL(file);
+                        video.controls = true;
+                        mediaPreview.appendChild(video);
+                    } else if (file.type.startsWith('audio/')) {
+                        const audio = document.createElement('audio');
+                        audio.src = URL.createObjectURL(file);
+                        audio.controls = true;
+                        mediaPreview.appendChild(audio);
+                    }
+
+                    const fileInfo = document.createElement('div');
+                    fileInfo.className = 'file-info';
+                    fileInfo.textContent = `📎 ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    
+                    messageContent.appendChild(mediaPreview);
+                    messageContent.appendChild(fileInfo);
+                }
+
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            addLoadingMessage() {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message bot';
+                messageDiv.id = 'loadingMessage';
+
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = 'G';
+
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content loading';
+                
+                const loadingText = document.createElement('span');
+                loadingText.textContent = 'Procesando';
+                
+                const loadingDots = document.createElement('div');
+                loadingDots.className = 'loading-dots';
+                
+                for (let i = 0; i < 3; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'loading-dot';
+                    loadingDots.appendChild(dot);
+                }
+                
+                messageContent.appendChild(loadingText);
+                messageContent.appendChild(loadingDots);
+
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            removeLoadingMessage() {
+                const loadingMessage = document.getElementById('loadingMessage');
+                if (loadingMessage) {
+                    loadingMessage.remove();
+                }
+            }
+
+            showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = `❌ Error: ${message}`;
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message bot';
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = 'G';
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                messageContent.appendChild(errorDiv);
+                
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            scrollToBottom() {
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+
+            async sendMessage() {
+                if (!this.apiKey) {
+                    this.showError('Por favor, ingresa tu API Key primero.');
+                    return;
+                }
+
+                const text = this.textInput.value.trim();
+                if (!text && !this.currentFile) {
+                    return;
+                }
+
+                // Deshabilitar botón de envío
+                this.sendBtn.disabled = true;
+
+                // Agregar mensaje del usuario
+                this.addMessage(text || 'Archivo adjunto', true, this.currentFile);
+
+                // Limpiar input
+                this.textInput.value = '';
+                this.textInput.style.height = 'auto';
+
+                // Agregar mensaje de carga
+                this.addLoadingMessage();
+
+                try {
+                    const response = await this.callGeminiAPI(text, this.currentFile);
+                    this.removeLoadingMessage();
+                    this.addMessage(response);
+                } catch (error) {
+                    this.removeLoadingMessage();
+                    this.showError(error.message);
+                }
+
+                // Limpiar archivo actual
+                this.currentFile = null;
+                
+                // Rehabilitar botón de envío
+                this.sendBtn.disabled = false;
+            }
+
+            async callGeminiAPI(text, file) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${this.apiKey}`;
+                
+                const parts = [];
+                
+                if (text) {
+                    parts.push({ text: text });
+                }
+
+                if (file) {
+                    const base64Data = await this.fileToBase64(file);
+                    parts.push({
+                        inline_data: {
+                            mime_type: this.getMimeType(file),
+                            data: base64Data
+                        }
+                    });
+                }
+
+                const requestBody = {
+                    contents: [{
+                        parts: parts
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 2048,
+                    }
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data.candidates || data.candidates.length === 0) {
+                    throw new Error('No se recibió respuesta del modelo.');
+                }
+
+                return data.candidates[0].content.parts[0].text;
+            }
+        }
+
+        // Instancia global del chatbot
+        const chatbot = new GeminiChatbot();
+
+        // Funciones globales para los eventos
+        function selectFile(type) {
+            const input = document.getElementById(`${type}Input`);
+            input.click();
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                // Verificar tamaño del archivo (max 20MB)
+                if (file.size > 20 * 1024 * 1024) {
+                    chatbot.showError('El archivo es demasiado grande. Máximo 20MB.');
+                    return;
+                }
+                
+                chatbot.currentFile = file;
+                
+                // Mostrar indicador visual de archivo seleccionado
+                const textInput = document.getElementById('textInput');
+                textInput.placeholder = `📎 ${file.name} seleccionado. Escribe un mensaje...`;
+                textInput.style.borderColor = '#34a853';
+            }
+            
+            // Limpiar el input para permitir seleccionar el mismo archivo de nuevo
+            event.target.value = '';
+        }
+
+        function sendMessage() {
+            chatbot.sendMessage();
+        }
+    </script>
+</body>
+</html>
